@@ -1,0 +1,67 @@
+version: "3"
+
+services:
+
+  scylla-node1:
+    container_name: scylla-node1
+    image: scylladb/scylla:latest
+    restart: always
+    command: --seeds=scylla-node1 --smp 1 --memory 750M --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - "./scylla/scylla.yaml:/etc/scylla/scylla.yaml"
+      - "./scylla/cassandra-rackdc.properties.dc1:/etc/scylla/cassandra-rackdc.properties"
+      - "./scylla/mutant-data.txt:/mutant-data.txt"
+    networks:
+      scylla-net:
+    healthcheck:
+      test: cqlsh -e "SHOW VERSION" || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 30s
+      timeout: 30s
+
+  scylla-node2:
+    container_name: scylla-node2
+    image: scylladb/scylla:latest
+    restart: always
+    command: --seeds=scylla-node1 --smp 1 --memory 750M --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - "./scylla/scylla.yaml:/etc/scylla/scylla.yaml"
+      - "./scylla/cassandra-rackdc.properties.dc1:/etc/scylla/cassandra-rackdc.properties"
+    networks:
+      scylla-net:
+    healthcheck:
+      test: cqlsh -e "SHOW VERSION" || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 30s
+      timeout: 30s
+    depends_on:
+      scylla-node1:
+        condition: service_healthy
+
+
+  scylla-node3:
+    container_name: scylla-node3
+    image: scylladb/scylla:latest
+    restart: always
+    command: --seeds=scylla-node1 --smp 1 --memory 750M --overprovisioned 1 --api-address 0.0.0.0
+    volumes:
+      - "./scylla/scylla.yaml:/etc/scylla/scylla.yaml"
+      - "./scylla/cassandra-rackdc.properties.dc1:/etc/scylla/cassandra-rackdc.properties"
+    networks:
+      scylla-net:
+    healthcheck:
+      test: cqlsh -e "SHOW VERSION" || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 30s
+      timeout: 30s
+    depends_on:
+      scylla-node2:
+        condition: service_healthy
+
+networks:
+  scylla-net:
+    driver: bridge
+    name: scylla-cluster_scylla-net
