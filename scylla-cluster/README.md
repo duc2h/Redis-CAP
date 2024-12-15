@@ -2,7 +2,9 @@
 
 We will test the consistency level in Scylladb cluster. Scylladb has clustering (the same architect as CassandraDB cluster). It has several levels, 
 but we check 3 famous levels: ONE, ALL, QUORUM [ref](https://opensource.docs.scylladb.com/stable/cql/consistency.html). Scylladb allows developers 
-to choose the CL based on their logic, CL can be flexible with any commands from the developers. 
+to choose the CL based on their logic, CL can be flexible with any commands from the developers.
+
+Follow the instruction: https://github.com/scylladb/scylla-code-samples/blob/master/mms/docker-compose.yml
 
 ## Set up
 In this example, I set up 3 nodes for the Scylla cluster. 
@@ -180,3 +182,27 @@ NoHostAvailable: ('Unable to complete the operation against any hosts', {<Host: 
 ```
 
 
+## Interact with Go
+
+```
+docker build -t my-go-app .
+
+docker stop my-go-app-container
+
+docker rm my-go-app-container
+
+docker run --name my-go-app-container --network scylla-cluster_scylla-net -p 8080:8080 my-go-app
+```
+
+Result:
+```
+docker run --name my-go-app-container --network scylla-cluster_scylla-net -p 8080:8080 my-go-app
+Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg.
+2024-12-15T05:35:06.368Z        INFO    Displaying Results:
+2024-12-15T05:35:06.375Z        INFO    Inserting Mike
+2024-12-15T05:35:06.379Z        INFO    Displaying Results:
+2024-12-15T05:35:06.384Z        INFO            Mike Tyson, 1515 Main St, http://www.facebook.com/mtyson
+2024-12-15T05:35:06.384Z        INFO    Deleting Mike
+2024-12-15T05:35:06.388Z        INFO    Displaying Results:
+
+```
