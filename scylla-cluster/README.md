@@ -12,6 +12,8 @@ In this example, I set up 3 nodes for the Scylla cluster.
 Execute: `docker compose up -d`
 
 Check node status:
+
+UN is up and normal. DN is down.
 ```
 docker exec -it scylla-node1 nodetool status
 Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg.
@@ -181,6 +183,82 @@ cqlsh:test_keyspace> SELECT * FROM test_table;
 NoHostAvailable: ('Unable to complete the operation against any hosts', {<Host: 10.89.7.17:9042 DC1>: Unavailable('Error from server: code=1000 [Unavailable exception] message="Cannot achieve consistency level for cl QUORUM. Requires 2, alive 1" info={\'consistency\': \'QUORUM\', \'required_replicas\': 2, \'alive_replicas\': 1}')})
 ```
 
+## Testing with partition_key
+In this example, we have 4 nodes in a datacenter. The token ring will be: (ref)[https://cassandra.apache.org/doc/4.1/cassandra/architecture/dynamo.html#consistent-hashing-using-a-token-ring]
+```
+Node1: Token range 0–25%.
+Node2: Token range 26–50%.
+Node3: Token range 51–75%.
+Node4: Token range 76–100%.
+```
+
+### Choose coordinator node: 
+
+When a write request is sent to Scylladb, Scylladb will hash the primary-key (partition_key), and then it will store the data to the node based on node's token ring. 
+
+
+### Choose replica nodes:
+Scylladb use clockwise concept to choose replica nodes (the next node of the coordinator-node). Example:
+```
+id = 10 => partition_key = 27 => coordinator-node is node2
+2 replica nodes are node3 and node4, respectively.
+```
+
+The question is: If I create a keyspace with 3 replica_factors in the datacenter has 4 nodes, node4 is down. What happens 
+if i insert a new record with consistency-level = ALL?
+
+=> The insert statement can be fail or success depend on its partition_key. 
+
+Success: if the partition_key belongs to node1 => replica nodes: node2 and node3 => all node alive.
+Fail: if the partition_key belongs to node2, node3 or node4. Example: partition_key belongs to node2 => replica nodes: 
+node3, node4 => node3 ack, but node4 not ack (crashing) => Failed.
+
+We can check the partition_key belongs to which nodes:
+
+`docker exec -it scylla-node1 nodetool getendpoints <keyspace-name> <table-name> <primary_key-value>`
+```
+docker exec -it scylla-node1 nodetool getendpoints test_keyspace test_table '1765933e-d5e2-4e2a-b749-59aa0d0a3cc7'
+
+10.89.7.64
+10.89.7.62
+10.89.7.63
+```
+
+## KEYSPACE with multiple datacenter
+We can create a keyspace with multiple datacenter.
+```
+ CREATE KEYSPACE test_keyspace
+    WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'DC1': 3,
+    'DC2': 3
+    };
+cqlsh> DESCRIBE test_keyspace;
+
+CREATE KEYSPACE test_keyspace WITH replication = {'class': 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'DC1': '3', 'DC2': '3'} AND durable_writes = true;
+```
+
+```
+Benefits of Multi-Datacenter Keyspaces: 
+	1.	Fault Tolerance: If an entire datacenter goes down, the cluster can still operate with the remaining datacenters.
+	2.	Disaster Recovery: Ensures data is available in another datacenter in case of catastrophic failure.
+	3.	Low Latency: Queries can be served locally within a datacenter by setting the consistency level to LOCAL_QUORUM.
+	4.	Geographical Distribution: Place replicas closer to users in geographically distributed systems.
+```
+
+```
+Consistency Levels in Multi-Datacenter Keyspaces: 
+When working with multi-datacenter keyspaces, you can control where and how queries are executed using consistency levels:
+	1.	LOCAL_QUORUM: (3/2 + 1) => 2 nodes need alive
+	    Requires a quorum (majority) of replicas in the local datacenter to respond.
+	    Ensures low-latency queries by avoiding cross-datacenter communication.
+	2.	QUORUM: (6/2 + 1) => 4 nodes need alive
+	    Requires a quorum of replicas across all datacenters to respond.
+	    Guarantees stronger consistency but incurs higher latency due to cross-datacenter communication.
+	3.	ALL: requires 6 nodes alive
+        Requires all replicas in all datacenters to respond.
+	    Provides the strongest consistency but is slower and less resilient to failures.
+```
 
 ## Interact with Go
 
