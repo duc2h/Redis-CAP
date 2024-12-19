@@ -260,6 +260,72 @@ When working with multi-datacenter keyspaces, you can control where and how quer
 	    Provides the strongest consistency but is slower and less resilient to failures.
 ```
 
+## Hinted-handoff in ScyllaDB
+Scylladb is using (hinted-handoff)[https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/hinted-handoff.html] 
+to synchronized data to down-nodes when they rejoin the cluster.
+
+We can monitor the hints by `promethues metrics`, 
+1. Disconnect node3: `docker network disconnect scylla-cluster_scylla-net scylla-node3`
+2. Checking node3 is down: 
+```
+docker exec -it scylla-node1 nodetool status                                                                      
+Datacenter: DC1
+===============
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+-- Address     Load      Tokens Owns Host ID                              Rack 
+UN 10.89.7.119 727.80 KB 256    ?    f7df5d27-1b80-4d95-b69f-c1fe0d369c3a Rack1
+UN 10.89.7.121 814.32 KB 256    ?    0398ec03-c745-4bf2-9edd-915836389318 Rack1
+DN 10.89.7.126 912.99 KB 256    ?    57c0eca5-edc9-4edd-88b3-eb0eb3088ba2 Rack1
+```
+
+3. Insert two new records with CL = ONE|QUORUM
+4. Checking the metrics, execute container: `docker exec -it scylla-node1 bash`
+```
+curl http://127.0.0.1:9180/metrics | grep hints
+...
+# HELP scylla_hints_manager_written Number of successfully written hints.
+# TYPE scylla_hints_manager_written counter
+scylla_hints_manager_written{shard="0"} 2 // there are two missing record.
+```
+
+5. Restart node3 and join to the cluster
+6. Checking the metrics in node1
+```
+curl http://127.0.0.1:9180/metrics | grep hints
+
+...
+# HELP scylla_hints_manager_sent_bytes_total The total size of the sent hints (in bytes)
+# TYPE scylla_hints_manager_sent_bytes_total counter
+scylla_hints_manager_sent_bytes_total{shard="0"} 470
+# HELP scylla_hints_manager_sent_total Number of sent hints.
+# TYPE scylla_hints_manager_sent_total counter
+scylla_hints_manager_sent_total{shard="0"} 2 // node1 has synced two missing data to the down-node.
+# HELP scylla_hints_manager_size_of_hints_in_progress Size of hinted mutations that are scheduled to be written.
+# TYPE scylla_hints_manager_size_of_hints_in_progress gauge
+scylla_hints_manager_size_of_hints_in_progress{shard="0"} 0.000000
+# HELP scylla_hints_manager_written Number of successfully written hints.
+# TYPE scylla_hints_manager_written counter
+scylla_hints_manager_written{shard="0"} 2
+100  239k    0  239k    0     0  7760k      0 --:--:-- --:--:-- --:--:-- 7972k
+```
+
+7. Checking the metrics in node3
+```
+curl http://127.0.0.1:9180/metrics | grep hints
+...
+# HELP scylla_hints_manager_written Number of successfully written hints.
+# TYPE scylla_hints_manager_written counter
+scylla_hints_manager_written{shard="0"} 0
+# HELP scylla_storage_proxy_replica_received_hints_bytes_total total size of hints and MV hints received by this node
+# TYPE scylla_storage_proxy_replica_received_hints_bytes_total counter
+scylla_storage_proxy_replica_received_hints_bytes_total{scheduling_group_name="streaming",shard="0"} 470
+# HELP scylla_storage_proxy_replica_received_hints_total number of hints and MV hints received by this node
+# TYPE scylla_storage_proxy_replica_received_hints_total counter
+scylla_storage_proxy_replica_received_hints_total{scheduling_group_name="streaming",shard="0"} 2 // node3 has received the synced.
+100  224k    0  224k    0     0  18.8M      0 --:--:-- --:--:-- --:--:-- 19.9M
+```
+
 ## Interact with Go
 
 ```
