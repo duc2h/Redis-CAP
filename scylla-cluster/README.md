@@ -184,7 +184,7 @@ NoHostAvailable: ('Unable to complete the operation against any hosts', {<Host: 
 ```
 
 ## Testing with partition_key
-In this example, we have 4 nodes in a datacenter. The token ring will be: (ref)[https://cassandra.apache.org/doc/4.1/cassandra/architecture/dynamo.html#consistent-hashing-using-a-token-ring]
+In this example, we have 4 nodes in a datacenter. The token ring will be: [ref](https://cassandra.apache.org/doc/4.1/cassandra/architecture/dynamo.html#consistent-hashing-using-a-token-ring)
 ```
 Node1: Token range 0–25%.
 Node2: Token range 26–50%.
@@ -261,7 +261,7 @@ When working with multi-datacenter keyspaces, you can control where and how quer
 ```
 
 ## Hinted-handoff in ScyllaDB
-Scylladb is using (hinted-handoff)[https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/hinted-handoff.html] 
+Scylladb is using [hinted-handoff](https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/hinted-handoff.html) 
 to synchronized data to down-nodes when they rejoin the cluster.
 
 We can monitor the hints by `promethues metrics`, 
