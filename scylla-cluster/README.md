@@ -260,9 +260,35 @@ When working with multi-datacenter keyspaces, you can control where and how quer
 	    Provides the strongest consistency but is slower and less resilient to failures.
 ```
 
-## Hinted-handoff in ScyllaDB
+## Consistency in ScyllaDB
 Scylladb is using (hinted-handoff)[https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/hinted-handoff.html] 
-to synchronized data to down-nodes when they rejoin the cluster.
+to synchronized data to down-nodes when they rejoin the cluster (short term: because the hint-storage-retention 
+just 3 hours.)
+
+Scylladb combines (anti-entropy read repair)[https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/read-repair.html] and (anti-entropy repair)[https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/maintenance/repair.html] to achieve consistency
+
+```
+Scenario: for hint-handoff
+
+	•	Node A, Node B, and Node C form a cluster.
+	•	Node B goes down, and Node A is the coordinator for a write intended for Node B.
+
+Steps:
+
+	1.	Write Operation:
+		A write request arrives at Node A for key user123.
+		Node A stores the data in its own replica and sends it to Node C.
+		Node B is down, so Node A creates a hint for Node B and stores it locally.
+	2.	Node B Recovers:
+		Gossip protocol detects Node B is back online.
+		Node A retrieves the hint for Node B from its hints directory.
+	3.	Hint Delivery:
+		Node A sends the stored hint to Node B in batches.
+		Node B applies the hints and becomes consistent with the cluster.
+	4.	Hint Deletion:
+		Node A deletes the hint for Node B after receiving an acknowledgment.
+
+```
 
 We can monitor the hints by `promethues metrics`, 
 1. Disconnect node3: `docker network disconnect scylla-cluster_scylla-net scylla-node3`
