@@ -81,6 +81,21 @@ services:
     networks:
       - redis-network
 
+  app:
+    build: .
+    container_name: app
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis-sentinel1
+      - redis-sentinel2
+      - redis-sentinel3
+    networks:
+      - redis-network
+
+
 networks:
   redis-network:
     driver: bridge
