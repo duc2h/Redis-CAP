@@ -265,7 +265,7 @@ Scylladb is using [hinted-handoff](https://opensource.docs.scylladb.com/stable/a
 to synchronized data to down-nodes when they rejoin the cluster (short term: because the hint-storage-retention 
 just 3 hours.)
 
-Scylladb combines [anti-entropy read repair](https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/read-repair.html) and [anti-entropy repair](https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/maintenance/repair.html) to achieve consistency
+Scylladb combines [anti-entropy read repair](https://opensource.docs.scylladb.com/stable/architecture/anti-entropy/read-repair.html) and [anti-entropy repair](https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/maintenance/repair.html) to achieve consistency for the node down for a long time.
 
 ```
 Scenario: for hint-handoff
